@@ -1,0 +1,40 @@
+# handler for adapter metricsd
+apiVersion: "config.istio.io/v1alpha2"
+kind: handler
+metadata:
+ name: mdhandler
+ namespace: istio-system
+spec:
+ adapter: metricsd
+ connection:
+   address: "metricsd.service-mesh.svc:8000" #replaces at runtime by the test
+ params:
+#   file_path: "out.txt"
+---
+
+# instance for template metric
+apiVersion: "config.istio.io/v1alpha2"
+kind: instance
+metadata:
+ name: mdinstance
+ namespace: istio-system
+spec:
+ template: metric
+ params:
+   value: request.size | 0
+   dimensions:
+     response_code: "200"
+---
+
+# rule to dispatch to handler mdh1
+apiVersion: "config.istio.io/v1alpha2"
+kind: rule
+metadata:
+ name: mdrule
+ namespace: istio-system
+spec:
+ actions:
+ - handler: mdhandler.istio-system
+   instances:
+   - mdinstance
+---
