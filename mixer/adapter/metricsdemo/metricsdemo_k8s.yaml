@@ -1,40 +1,63 @@
-apiVersion: v1
-kind: Service
-metadata:
-  name: metricsdemo
-  namespace: service-mesh
-  labels:
-    app: metricsdemo
-spec:
-  type: ClusterIP
-  ports:
-  - name: grpc
-    protocol: TCP
-    port: 8000
-    targetPort: 8000
-  selector:
-    app: metricsdemo
----
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  name: metricsdemo
-  namespace: service-mesh
-  labels:
-    app: metricsdemo
-spec:
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: metricsdemo
-      annotations:
-        sidecar.istio.io/inject: "false"
-        scheduler.alpha.kubernetes.io/critical-pod: ""
-    spec:
-      containers:
-      - name: metricsdemo
-        image: metricsdemo:0.1
-        imagePullPolicy: Never
-        ports:
-        - containerPort: 8000
+#apiVersion: v1
+#kind: Service
+#metadata:
+#  name: metricsd
+#  namespace: service-mesh
+#  labels:
+#    app: metricsd
+#spec:
+#  type: ClusterIP
+#  ports:
+#  - name: grpc
+#    protocol: TCP
+#    port: 8000
+#    targetPort: 8005
+#  selector:
+##    app: metricsd
+#    app: grpcmule
+#---
+#apiVersion: extensions/v1beta1
+#kind: Deployment
+#metadata:
+#  name: metricsd
+#  namespace: service-mesh
+#  labels:
+#    app: metricsd
+#spec:
+#  replicas: 1
+#  template:
+#    metadata:
+#      labels:
+#        app: metricsd
+#      annotations:
+#        sidecar.istio.io/inject: "false"
+#        scheduler.alpha.kubernetes.io/critical-pod: ""
+#    spec:
+#      imagePullSecrets:
+#      - name: ecr-perfsv
+#      containers:
+#      - name: metricsd
+#        image: 302195489440.dkr.ecr.us-east-1.amazonaws.com/mulesoft/metricsd-adapter:0.0.1_1
+#        imagePullPolicy: IfNotPresent
+#        ports:
+#        - containerPort: 8005
+#          protocol: TCP
+
+################################################################################################
+
+### k edit deploy/grpcmule-default -n service-mesh
+#.....containers: # correct padding
+      # containers:
+      # - name: metricsd
+      #   image: 302195489440.dkr.ecr.us-east-1.amazonaws.com/mulesoft/metricsd-adapter:0.0.1_1
+      #   imagePullPolicy: IfNotPresent
+      #   ports:
+      #   - containerPort: 8005
+      #     protocol: TCP
+
+### k edit svc/grpcmule-default -n service-mesh
+#.- name: grpc-metrics # correct padding
+#  - name: grpc-metrics
+#    port: 8005
+#    protocol: TCP
+#    targetPort: 8005

@@ -22,8 +22,14 @@ package metricsdemo
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net"
+	"net/http"
+	"strings"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -32,6 +38,8 @@ import (
 	"istio.io/istio/mixer/template/metric"
 	"istio.io/istio/pkg/log"
 )
+
+const GatewayUrl = "http://127.0.0.1:9999/mule/smanalytics/applications/service-mesh"
 
 type (
 	// Server is basic server interface
@@ -45,6 +53,7 @@ type (
 	MetricsDemo struct {
 		listener net.Listener
 		server   *grpc.Server
+		client	 *http.Client
 	}
 )
 
@@ -53,9 +62,55 @@ var _ metric.HandleMetricServiceServer = &MetricsDemo{}
 // HandleMetric records metric entries
 func (s *MetricsDemo) HandleMetric(ctx context.Context, r *metric.HandleMetricRequest) (*v1beta1.ReportResult, error) {
 	log.Infof("received request %v\n", *r)
-	log.Infof(fmt.Sprintf("HandleMetric invoked with:\n  Instances: %s\n", instances(r.Instances)))
-	log.Infof("success!!")
+
+    values := map[string]string{}
+	var sb strings.Builder
+	for _, m := range instances(r.Instances) {
+		sb.WriteString(fmt.Sprintf("Name: %v\nValue: %v\nDimensions:\n", m.Name, m.Value))
+		for k, v := range m.Dimensions {
+			sb.WriteString(fmt.Sprintf("\t%v: %v\n", k, v))
+			values[k] = fmt.Sprintf("%v", v)
+		}
+		sb.WriteString("---------------------------------\n")
+	}
+	log.Infof(fmt.Sprintf("HandleMetric invoked with:\n  Instances: %s\n", sb.String()))
+
+    jsonValue, _ := json.Marshal(values)
+    resp, err := http.Post(GatewayUrl, "application/json", bytes.NewBuffer(jsonValue))
+	if err == nil {
+		defer cleanupResponse(resp)
+	}
+	if err != nil {
+		log.Errorf("Error connecting to API Gateway %v", err)
+	} else {
+		log.Infof("Mule Agent response: " + resp.Status)
+	}
 	return &v1beta1.ReportResult{}, nil
+}
+
+func cleanupResponse(resp *http.Response) {
+	if resp != nil && resp.Body != nil {
+		_, err := io.Copy(ioutil.Discard, resp.Body)
+		if err != nil {
+			log.Infof("Error consuming body: %v", err)
+		}
+		err = resp.Body.Close()
+		if err != nil {
+			log.Infof("Error closing body: %v", err)
+		}
+	}
+}
+
+func instances(in []*metric.InstanceMsg) []*metric.Instance {
+	out := make([]*metric.Instance, 0, len(in))
+	for _, inst := range in {
+		out = append(out, &metric.Instance{
+			Name:       inst.Name,
+			Value:      decodeValue(inst.Value.GetValue()),
+			Dimensions: decodeDimensions(inst.Dimensions),
+		})
+	}
+	return out
 }
 
 func decodeDimensions(in map[string]*policy.Value) map[string]interface{} {
@@ -74,21 +129,13 @@ func decodeValue(in interface{}) interface{} {
 		return t.Int64Value
 	case *policy.Value_DoubleValue:
 		return t.DoubleValue
+	case *policy.Value_IpAddressValue:
+		return t.IpAddressValue
+	case *policy.Value_TimestampValue:
+		return t.TimestampValue
 	default:
 		return fmt.Sprintf("%v", in)
 	}
-}
-
-func instances(in []*metric.InstanceMsg) string {
-	var b bytes.Buffer
-	for _, inst := range in {
-		b.WriteString(fmt.Sprintf("'%s':\n"+
-			"  {\n"+
-			"		Value = %v\n"+
-			"		Dimensions = %v\n"+
-			"  }", inst.Name, decodeValue(inst.Value.GetValue()), decodeDimensions(inst.Dimensions)))
-	}
-	return b.String()
 }
 
 // Addr returns the listening address of the server
@@ -125,9 +172,23 @@ func NewMetricsDemo(addr string) (Server, error) {
 	}
 	s := &MetricsDemo{
 		listener: listener,
+		client:   &http.Client{Transport: customTransport(), Timeout: time.Second * 10},
 	}
 	fmt.Printf("listening on \"%v\"\n", s.Addr())
 	s.server = grpc.NewServer()
 	metric.RegisterHandleMetricServiceServer(s.server, s)
 	return s, nil
+}
+
+func customTransport() *http.Transport {
+    // Customize the Transport to have larger connection pool
+    defaultRoundTripper := http.DefaultTransport
+    defaultTransportPointer, ok := defaultRoundTripper.(*http.Transport)
+    if !ok {
+        panic(fmt.Sprintf("defaultRoundTripper not an *http.Transport"))
+    }
+    defaultTransport := *defaultTransportPointer // dereference it to get a copy of the struct that the pointer points to
+    defaultTransport.MaxIdleConns = 100
+    defaultTransport.MaxIdleConnsPerHost = 100
+    return &defaultTransport
 }

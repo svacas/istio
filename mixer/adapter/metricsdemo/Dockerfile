@@ -35,5 +35,5 @@ WORKDIR /bin/
 #COPY --from=BUILD /go/src/github.com/mulesoft/service-mesh-grpc-adapter/grpcmule/bin/grpcmule .
 COPY bin/metricsd .
 ENTRYPOINT [ "/bin/metricsd" ]
-CMD [ "8000" ]
-EXPOSE 8000
+CMD [ "8005" ]
+EXPOSE 8005

@@ -3,11 +3,11 @@ apiVersion: "config.istio.io/v1alpha2"
 kind: handler
 metadata:
  name: mdhandler
- namespace: istio-system
+ namespace: service-mesh
 spec:
  adapter: metricsd
  connection:
-   address: "metricsd.service-mesh.svc:8000" #replaces at runtime by the test
+   address: "grpcmule-default.service-mesh.svc:8005"
  params:
 #   file_path: "out.txt"
 ---
@@ -17,13 +17,41 @@ apiVersion: "config.istio.io/v1alpha2"
 kind: instance
 metadata:
  name: mdinstance
- namespace: istio-system
+ namespace: service-mesh
 spec:
  template: metric
  params:
    value: request.size | 0
    dimensions:
-     response_code: "200"
+     nameSpace: destination.namespace | ""
+     serviceName: destination.service.name | ""
+     podName: destination.name | ""
+     hostId: destination.service.host | ""
+     clientId: request.headers["client_id"] | ""
+     receivedTs: request.time
+     repliedTs: response.time
+     clientIp: origin.ip | ip("0.0.0.0")
+     verb: request.method | ""
+     path: request.path | ""
+     statusCode: response.code | 0
+     userAgent: request.useragent | ""
+     requestBytes: request.size | 0
+     responseBytes: response.size | 0
+     eventId: request.id | ""
+
+     #auth_header_value:  request.headers["authorization"]
+     #api_context: api.context | ""
+     #api_name: api.service | ""
+     #api_version: api.version | ""
+     #resource_path_template: api.operation | ""
+     #request_host: request.host | ""
+     #api_protocol: api.protocol | "http"
+     #destination: destination.service.host | ""
+     #check_error_code: check.error_code | 0
+     #check_error_message: check.error_message | ""
+     #request_state: response.headers["rqstate"] | ""
+
+
 ---
 
 # rule to dispatch to handler mdh1
@@ -31,10 +59,11 @@ apiVersion: "config.istio.io/v1alpha2"
 kind: rule
 metadata:
  name: mdrule
- namespace: istio-system
+ namespace: service-mesh
 spec:
  actions:
- - handler: mdhandler.istio-system
+ - handler: mdhandler.service-mesh
    instances:
    - mdinstance
+ match: destination.service.namespace == "default"
 ---
