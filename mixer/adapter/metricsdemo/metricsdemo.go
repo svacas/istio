@@ -130,9 +130,9 @@ func decodeValue(in interface{}) interface{} {
 	case *policy.Value_DoubleValue:
 		return t.DoubleValue
 	case *policy.Value_IpAddressValue:
-		return t.IpAddressValue
+		return t.IpAddressValue.Value
 	case *policy.Value_TimestampValue:
-		return t.TimestampValue
+		return t.TimestampValue.Value.String()
 	default:
 		return fmt.Sprintf("%v", in)
 	}

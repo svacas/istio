@@ -1,0 +1,5 @@
+bin/
+config/adapter.metricsdemo.config.pb.html
+config/config.pb.go
+config/config.proto_descriptor
+config/metricsdemo.yaml

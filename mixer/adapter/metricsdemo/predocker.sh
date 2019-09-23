@@ -15,5 +15,5 @@ echo done
 
 ## post
 
-# docker build -t 302195489440.dkr.ecr.us-east-1.amazonaws.com/mulesoft/metricsd-adapter:0.0.1_1 .
-# docker push 302195489440.dkr.ecr.us-east-1.amazonaws.com/mulesoft/metricsd-adapter:0.0.1_1
+# docker build -t 302195489440.dkr.ecr.us-east-1.amazonaws.com/mulesoft/metricsd-adapter:0.0.1_2 .
+# docker push 302195489440.dkr.ecr.us-east-1.amazonaws.com/mulesoft/metricsd-adapter:0.0.1_2
