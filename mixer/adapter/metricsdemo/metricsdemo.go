@@ -63,20 +63,23 @@ var _ metric.HandleMetricServiceServer = &MetricsDemo{}
 func (s *MetricsDemo) HandleMetric(ctx context.Context, r *metric.HandleMetricRequest) (*v1beta1.ReportResult, error) {
 	log.Infof("received request %v\n", *r)
 
-    values := map[string]string{}
 	var sb strings.Builder
+	data := make([]map[string]string, 0, len(r.Instances))
 	for _, m := range instances(r.Instances) {
 		sb.WriteString(fmt.Sprintf("Name: %v\nValue: %v\nDimensions:\n", m.Name, m.Value))
+		values := map[string]string{}
 		for k, v := range m.Dimensions {
 			sb.WriteString(fmt.Sprintf("\t%v: %v\n", k, v))
 			values[k] = fmt.Sprintf("%v", v)
 		}
 		sb.WriteString("---------------------------------\n")
+		data = append(data, values)
 	}
 	log.Infof(fmt.Sprintf("HandleMetric invoked with:\n  Instances: %s\n", sb.String()))
 
-    jsonValue, _ := json.Marshal(values)
-    resp, err := http.Post(GatewayUrl, "application/json", bytes.NewBuffer(jsonValue))
+	jsonValue, _ := json.Marshal(data)
+	log.Infof("pushing %v event(s):\n%v\n", len(data), string(jsonValue))
+	resp, err := http.Post(GatewayUrl, "application/json", bytes.NewBuffer(jsonValue))
 	if err == nil {
 		defer cleanupResponse(resp)
 	}
@@ -85,6 +88,7 @@ func (s *MetricsDemo) HandleMetric(ctx context.Context, r *metric.HandleMetricRe
 	} else {
 		log.Infof("Mule Agent response: " + resp.Status)
 	}
+
 	return &v1beta1.ReportResult{}, nil
 }
 
